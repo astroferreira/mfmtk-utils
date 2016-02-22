@@ -1,5 +1,5 @@
 import numpy as np
-
+import numpy.ma as ma 
 
 
 class catalog(object):
@@ -28,7 +28,68 @@ class catalog(object):
             
         return temp_cat
     
-    def reduce_catalog(self, other, reduce_column, wout_QF=False):
+    def reduce_cats_masked(self, others, reduce_column):
+        temp_cat = self
+        for other in others:
+            temp_cat = temp_cat.reduce_masked(other, reduce_column)
+            
+        return temp_cat    
+
+    def reduce_masked(self, other, reduce_column):
+        red_val = column_dict[reduce_column]
+
+        galaxies = self.raw_catalog[0]
+        self_indexes = range(0, np.size(galaxies), 1)
+        other_indexes = np.array([])
+        missing_indexes = np.array([])
+
+        for galaxy in galaxies:
+            if galaxy in other.raw_catalog[0]:
+                other_indexes = np.append(other_indexes, np.where(self.raw_catalog[0] == galaxy)[0][0])
+            else:
+                missing_indexes = np.append(missing_indexes, np.where(self.raw_catalog[0] == galaxy)[0][0])
+        
+
+        new_catalog = ma.array([])
+        galaxies = galaxies.reshape(galaxies.shape[0], 1)
+
+        if(self.reduced):
+            columns = self.raw_catalog[1:].T
+            new_catalog = ma.append(galaxies, columns, axis=1)
+        else:
+            column =  self.raw_catalog[red_val].reshape(self.raw_catalog[red_val].shape[0], 1)
+            new_catalog = ma.append(galaxies, column, axis=1)
+        
+
+        new_column = ma.array(np.zeros(galaxies.shape))
+        
+
+
+        for i, index in enumerate(other_indexes):
+            new_column[index] = other.raw_catalog[red_val][i]
+
+        for i, index in enumerate(missing_indexes):
+            new_column[index] = ma.masked
+
+
+        new_catalog = ma.append(new_catalog, new_column, axis=1)
+
+        ncat = catalog(new_catalog.T)
+        ncat.reduced = True
+
+        return ncat
+
+
+
+
+
+
+
+
+
+
+    def reduce_catalog(self, other, reduce_column, wout_QF=False, masked=False):
+        
         red_val = column_dict[reduce_column]
         self_numbers = np.array([])
         other_numbers = np.array([])
