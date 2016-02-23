@@ -2,6 +2,15 @@ import numpy as np
 import numpy.ma as ma 
 
 
+def histograms(param, x, axes, color='b', bins=25, normed=1, alpha=0.5):
+    for column, ax, xi in zip(param.T, axes.flat, x):
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.hist(column, color=color,
+         bins=bins, normed=normed, alpha=alpha)
+    
+
+
 class catalog(object):
     
     
@@ -20,7 +29,7 @@ class catalog(object):
             
         output.close()     
     
-    
+        
     def reduce_catalogs(self, others, reduce_column, wout_QF=False):
         temp_cat = self
         for other in others:
@@ -36,19 +45,15 @@ class catalog(object):
         return temp_cat    
 
     def reduce_masked(self, other, reduce_column):
+
         red_val = column_dict[reduce_column]
-
         galaxies = self.raw_catalog[0]
-        self_indexes = range(0, np.size(galaxies), 1)
-        other_indexes = np.array([])
-        missing_indexes = np.array([])
+        other_indexes = ma.array(np.zeros_like(galaxies))
 
-        for galaxy in galaxies:
+        for i, galaxy in enumerate(galaxies):
             if galaxy in other.raw_catalog[0]:
-                other_indexes = np.append(other_indexes, np.where(self.raw_catalog[0] == galaxy)[0][0])
-            else:
-                missing_indexes = np.append(missing_indexes, np.where(self.raw_catalog[0] == galaxy)[0][0])
-        
+                other_indexes[i] = np.where(other.raw_catalog[0] == galaxy)[0][0]
+
 
         new_catalog = ma.array([])
         galaxies = galaxies.reshape(galaxies.shape[0], 1)
@@ -62,31 +67,19 @@ class catalog(object):
         
 
         new_column = ma.array(np.zeros(galaxies.shape))
-        
-
+        other_indexes[np.where(other_indexes == '')] = 0
 
         for i, index in enumerate(other_indexes):
-            new_column[index] = other.raw_catalog[red_val][i]
-
-        for i, index in enumerate(missing_indexes):
-            new_column[index] = ma.masked
-
+            if(index == 0):
+                new_column[i] = ma.masked
+            else:
+                new_column[i] = other.raw_catalog[red_val][int(index)]
 
         new_catalog = ma.append(new_catalog, new_column, axis=1)
 
         ncat = catalog(new_catalog.T)
         ncat.reduced = True
-
         return ncat
-
-
-
-
-
-
-
-
-
 
     def reduce_catalog(self, other, reduce_column, wout_QF=False, masked=False):
         
