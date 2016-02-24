@@ -1,7 +1,53 @@
+# -*- coding: utf-8 -*-
+""" mfmtk-utils: Morfometryka Utilities
+
+This module is a collection of classes and functions created
+to help in the reduction of MFMTK's data. There's three
+categories of utilities: general, reduction, and plotting. 
+
+1. General 
+    * Functions to help in general problems
+2. Reduction
+    * Classes and methods to reduce MFMTK catalogs
+    in desirable outputs.
+
+Example: 
+    The method ''reduce_masked'' from the
+    ''catalog'' class takes a list of MFMTK catalogs
+    and a MFMTK's parameter as argument making then 
+    a combination from all catalogs in the list for the
+    parameter passed as argument. The result is a catalog
+    with 'n+1' columns where 'n' is the number of
+    catalogs in the argument list plus a column with
+    all galaxies names as in the first catalog. 
+
+3. Plotting
+    * Plotting routines were created to facilitate the
+    creation of some common plots under MFMTK's workflow.
+
+Example:
+    The ''histogram'' function, for example, creates a 
+    mosaic with the distribuction of given parameter
+    measurement for each value of the independent 
+    variable.
+
+
+"""
 import numpy as np
 import numpy.ma as ma 
 
+
+
+def intersect(a, b):
+    """ Return an numpy array with the intersection
+        of a and b.
+    """
+    return np.array(list(set(a) & set(b)))
+
 def histograms(param, x, axes, color='b', bins=25, normed=1, alpha=0.5):
+    """ Plots a mosaic with histograms for each value
+    of 'x'.
+    """
     for column, ax, xi in zip(param.T, axes.flat, x):
         ax.set_xticks([])
         ax.set_yticks([])
@@ -9,8 +55,14 @@ def histograms(param, x, axes, color='b', bins=25, normed=1, alpha=0.5):
          bins=bins, normed=normed, alpha=alpha)
     
 
-
 class catalog(object):
+    """ The ''catalog'' class handles all Morfometryka
+    catalogs reduction. It's implementation is not
+    quite good, the majority of function could work
+    standalone, but the 'self' keyword and the usage
+    of the attribute ''reduced'' makes most of the
+    reduction logic very straightforward.
+    """
     
     
     def save(self, path, header):
