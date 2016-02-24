@@ -36,7 +36,7 @@ Example:
 
 import numpy as np
 import numpy.ma as ma 
-
+import matplotlib.pyplot as plt
 from scipy.stats import norm
 
 
@@ -46,18 +46,32 @@ def intersect(a, b):
     """
     return np.array(list(set(a) & set(b)))
 
-def histograms(param, x, axes, color='b', bins=25, normed=1, alpha=0.5):
+def histograms(param, x, axes=None, color='b', bins=19, normed=1, alpha=0.5, xinfo=False):
     """ Plots a mosaic with histograms for each value
     of 'x'.
     """
-    for column, ax, xi in zip(param.T, axes.flat, x):
-        ax.set_xticks([])
+
+    if axes is None:
+        f, axes = plt.subplots(4, 5, sharex=True, figsize=(15, 7))
+        plt.subplots_adjust(hspace=0, wspace=0)
+
+    for i, (column, ax, xi) in enumerate(zip(param.T, axes.flat, x)):
         ax.set_yticks([])
         ax.hist(column, color=color,
          bins=bins, normed=normed, alpha=alpha)
+        if(xinfo):
+            ylim = ax.get_ylim()
+            xlim = ax.get_xlim()
+            ax.text(np.percentile(xlim, 5), np.percentile(ylim, 85), 'z = ' + str(xi))
     
-def plot_as_gaussians(param, x, ax, color='blue', labels=None):
+def plot_as_gaussians(param, x, ax=None, color='blue', label=None, title=None, ylabel=None):
     fit = np.array([np.zeros(2)]).reshape(2,1)
+
+    if ax is None:
+        f, ax = plt.subplots(1, 1)
+
+    xlim=[x.min(), x.max()]
+    ax.set_xlim(xlim)
 
     for column in param.T:
         mu, sigma = np.array(norm.fit(column.T))
@@ -65,11 +79,27 @@ def plot_as_gaussians(param, x, ax, color='blue', labels=None):
 
     fit = fit.T[1:]
 
+    if title is not None:
+        ax.set_title(title, fontsize=20)
+
+    if ylabel is not None:
+        ax.set_ylabel(ylabel, fontsize=20)
+
     ax.plot(x, fit.T[0], '-', color=color, label=label)
     ax.fill_between(x, fit.T[0] - fit.T[1], fit.T[0] + fit.T[1],
                      facecolor=color, alpha=0.5)
 
-   
+def find_spiked(param, threshold):
+    spiked = []
+    not_spiked = []
+    for i, galaxy in enumerate(Rn):
+        derivative = np.gradient(galaxy)
+        if not (np.size(derivative[np.where(derivative > 0)]) >= threshold):
+            not_spiked.append(i)
+        else:
+            spiked.append(i)
+    return (np.array(spiked), np.array(not_spiked))
+
 
 
 class catalog(object):
