@@ -1,7 +1,6 @@
 import numpy as np
 import numpy.ma as ma 
 
-
 def histograms(param, x, axes, color='b', bins=25, normed=1, alpha=0.5):
     for column, ax, xi in zip(param.T, axes.flat, x):
         ax.set_xticks([])
