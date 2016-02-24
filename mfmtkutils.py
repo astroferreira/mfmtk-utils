@@ -33,9 +33,11 @@ Example:
 
 
 """
+
 import numpy as np
 import numpy.ma as ma 
 
+from scipy.stats import norm
 
 
 def intersect(a, b):
@@ -54,6 +56,21 @@ def histograms(param, x, axes, color='b', bins=25, normed=1, alpha=0.5):
         ax.hist(column, color=color,
          bins=bins, normed=normed, alpha=alpha)
     
+def plot_as_gaussians(param, x, ax, color='blue', labels=None):
+    fit = np.array([np.zeros(2)]).reshape(2,1)
+
+    for column in param.T:
+        mu, sigma = np.array(norm.fit(column.T))
+        fit = np.append(fit, np.array([mu, sigma]).reshape(2,1), axis=1)
+
+    fit = fit.T[1:]
+
+    ax.plot(x, fit.T[0], '-', color=color, label=label)
+    ax.fill_between(x, fit.T[0] - fit.T[1], fit.T[0] + fit.T[1],
+                     facecolor=color, alpha=0.5)
+
+   
+
 
 class catalog(object):
     """ The ''catalog'' class handles all Morfometryka
@@ -64,6 +81,19 @@ class catalog(object):
     reduction logic very straightforward.
     """
     
+    def __init__(self, path='', reduced=False, external=None):
+        if(reduced):
+            self.raw_catalog = external
+            self.reduced = reduced
+        else:
+            self.load(path)
+            self.reduced = False    
+    
+    def load(self, path):
+        cat = np.loadtxt(path, delimiter=',', dtype='str').T
+        for i, name in enumerate(cat[0]):
+            cat[0][i] = name.strip()
+        self.raw_catalog = cat
     
     def save(self, path, header):
         output = open(path, 'w')
@@ -80,23 +110,19 @@ class catalog(object):
             
         output.close()     
     
-        
-    def reduce_catalogs(self, others, reduce_column, wout_QF=False):
+    def reduce(self, others, reduce_column, masked=True):
         temp_cat = self
+
+        #check if first element is self, useful when passing a list with self in with
+        if(self == others[0]):
+            others = others[1:]
+
         for other in others:
-            temp_cat = temp_cat.reduce_catalog(other, reduce_column, wout_QF)
-            
-        return temp_cat
-    
-    def reduce_cats_masked(self, others, reduce_column):
-        temp_cat = self
-        for other in others:
-            temp_cat = temp_cat.reduce_masked(other, reduce_column)
+            temp_cat = temp_cat.__reduce_masked(other, reduce_column)
             
         return temp_cat    
 
-    def reduce_masked(self, other, reduce_column):
-
+    def __reduce_masked(self, other, reduce_column):
         red_val = column_dict[reduce_column]
         galaxies = self.raw_catalog[0]
         other_indexes = ma.array(np.zeros_like(galaxies))
@@ -128,65 +154,12 @@ class catalog(object):
 
         new_catalog = ma.append(new_catalog, new_column, axis=1)
 
-        ncat = catalog(new_catalog.T)
-        ncat.reduced = True
+        ncat = catalog(reduced=True, external=new_catalog.T)
         return ncat
 
-    def reduce_catalog(self, other, reduce_column, wout_QF=False, masked=False):
-        
-        red_val = column_dict[reduce_column]
-        self_numbers = np.array([])
-        other_numbers = np.array([])
 
-        for i, gal in enumerate(self.raw_catalog[0]):
-            if not (self.reduced):
-                if(wout_QF):
-                    if (self.raw_catalog[column_dict['QF']][i].astype(float) > 0):
-                        continue
-                
-            if gal in other.raw_catalog[0]:
-                index_self = np.where(self.raw_catalog[0] == gal)
-                index_other = np.where(other.raw_catalog[0] == gal)
-                self_numbers = np.append(self_numbers, index_self)
-                other_numbers = np.append(other_numbers, index_other)
-                continue                
-        
-        new_catalog = []
-        
-        self_galaxies = [self.raw_catalog[0][j] for j in self_numbers]
-        
-        new_catalog.append(self_galaxies)
-        if(self.reduced):
-            shape = self.raw_catalog.shape[0]
-            for i in range(1, shape):
-                self_column = [float(self.raw_catalog[i][j]) for j in self_numbers]
-                new_catalog.append(self_column)
-        else:
-            self_column = [float(self.raw_catalog[red_val][j]) for j in self_numbers]
-            new_catalog.append(self_column)
-        
-        if(other.reduced):
-            shape = other.raw_catalog.shape[0]-1
-            for i in range(1, shape):
-                other_column = [float(other.raw_catalog[i][j]) for j in other_numbers]
-                new_catalog.append(other_column)
-        else:
-            other_column = [float(other.raw_catalog[red_val][j]) for j in other_numbers]
-            new_catalog.append(other_column)
-        
-        
-        new_catalog = catalog(np.array(new_catalog))
-        new_catalog.reduced = True
-        return new_catalog
-        
+
     
-    def load_catalog(self, path):
-        cat = np.loadtxt(path, delimiter=',', dtype='str').T
-        self.raw_catalog = cat
-    
-    def __init__(self, external_catalog=None):
-        self.raw_catalog = external_catalog
-        self.reduced = False
         
         
         
