@@ -101,26 +101,33 @@ def find_spiked(param, threshold):
     return (np.array(spiked), np.array(not_spiked))
 
 
-def lda(X, n, spirals, ellipticals):
+def classes_indexes(galaxies, T_type):
+    E_indexes = T_type.T[np.where(T_type[1].astype(float) < 0)].T[0]
+    S_indexes = T_type.T[np.where((T_type[1].astype(float) >= 1) & (T_type[1].astype(float) < 6))].T[0]
+    spirals = np.array([i for i, val in enumerate(galaxies) if val in set(S_indexes)])
+    ellipticals = np.array([i for i, val in enumerate(galaxies) if val in set(E_indexes)])
+    return [spirals, ellipticals]
+
+def fisher_lda(X, n, classes):
+    
+    #find mean vectors for each class
     mean_vectors = []
-    mean_vectors.append(np.mean(X[spirals], axis=0))
-    mean_vectors.append(np.mean(X[ellipticals], axis=0))
+    for c in classes:
+        mean_vectors.append(np.mean(X[c], axis=0))
+    
+    #overall mean for the data
+    overall_mean = np.mean(X, axis=0)   
 
-    Sw_spirals = np.zeros((n,n))
-    Sw_elliptical = np.zeros((n,n))
+    #find  within-class scatter matrix
+    SW = np.zeros((n,n))
+    for c in classes:
+        SW_temp = np.zeros((n,n))
+        for galaxy in X[c]:
+            galaxy, mv = galaxy.reshape(n, 1), mean_vectors[0].reshape(n,1)
+            SW_temp += (galaxy-mv).dot((galaxy-mv).T)
+        SW = SW + SW_temp
 
-    for galaxy in X[spirals]:
-        galaxy, mv = galaxy.reshape(n, 1), mean_vectors[0].reshape(n,1)
-        Sw_spirals += (galaxy-mv).dot((galaxy-mv).T)
-        
-    for galaxy in X[ellipticals]:
-        galaxy, mv = galaxy.reshape(n, 1), mean_vectors[0].reshape(n,1)
-        Sw_elliptical += (galaxy-mv).dot((galaxy-mv).T)    
-        
-    S_W = Sw_spirals + Sw_elliptical
-
-    overall_mean = np.mean(X, axis=0)
-    classes = [spirals, ellipticals]
+    #find between-class scatter matrix
     S_B = np.zeros((n,n))
     for galclass, mv in zip(classes, mean_vectors):
         N = X[galclass].shape[0]
@@ -129,7 +136,8 @@ def lda(X, n, spirals, ellipticals):
         S_B  += N* (mv - overall_mean).dot((mv-overall_mean).T)
         
 
-    eig_vals, eig_vecs = np.linalg.eig(np.linalg.inv(S_W).dot(S_B))
+    #solve the eigenvalue problem for our matrixes
+    eig_vals, eig_vecs = np.linalg.eig(np.linalg.inv(SW).dot(S_B))
 
     # Make a list of (eigenvalue, eigenvector) tuples
     eig_pairs = [(np.abs(eig_vals[i]), eig_vecs[:,i]) for i in range(len(eig_vals))]
@@ -137,21 +145,11 @@ def lda(X, n, spirals, ellipticals):
     # Sort the (eigenvalue, eigenvector) tuples from high to low
     eig_pairs = sorted(eig_pairs, key=lambda k: k[0], reverse=True)
 
-    # Visually confirm that the list is correctly sorted by decreasing eigenvalues
-
-    #print('Eigenvalues in decreasing order:\n')
-    #for i in eig_pairs:
-    #    print(i[0])
-
-    #print('Variance explained:\n')
-    eigv_sum = sum(eig_vals)
-    ##for i,j in enumerate(eig_pairs):
-     #   print('eigenvalue {0:}: {1:.2%}'.format(i+1, (j[0]/eigv_sum).real))
-
+    
+    #take only the most significant LDAs
     W = np.hstack((eig_pairs[0][1].reshape(5,1), eig_pairs[1][1].reshape(5,1)))
-    #print('Matrix W:\n', W.real)
 
-
+    #transform our data in the new subspace
     X_lda = X.dot(W)
 
     return X_lda
