@@ -101,6 +101,62 @@ def find_spiked(param, threshold):
     return (np.array(spiked), np.array(not_spiked))
 
 
+def lda(X, n, spirals, ellipticals):
+    mean_vectors = []
+    mean_vectors.append(np.mean(X[spirals], axis=0))
+    mean_vectors.append(np.mean(X[ellipticals], axis=0))
+
+    Sw_spirals = np.zeros((n,n))
+    Sw_elliptical = np.zeros((n,n))
+
+    for galaxy in X[spirals]:
+        galaxy, mv = galaxy.reshape(n, 1), mean_vectors[0].reshape(n,1)
+        Sw_spirals += (galaxy-mv).dot((galaxy-mv).T)
+        
+    for galaxy in X[ellipticals]:
+        galaxy, mv = galaxy.reshape(n, 1), mean_vectors[0].reshape(n,1)
+        Sw_elliptical += (galaxy-mv).dot((galaxy-mv).T)    
+        
+    S_W = Sw_spirals + Sw_elliptical
+
+    overall_mean = np.mean(X, axis=0)
+    classes = [spirals, ellipticals]
+    S_B = np.zeros((n,n))
+    for galclass, mv in zip(classes, mean_vectors):
+        N = X[galclass].shape[0]
+        mv = mv.reshape(n,1)
+        overall_mean = overall_mean.reshape(n,1)
+        S_B  += N* (mv - overall_mean).dot((mv-overall_mean).T)
+        
+
+    eig_vals, eig_vecs = np.linalg.eig(np.linalg.inv(S_W).dot(S_B))
+
+    # Make a list of (eigenvalue, eigenvector) tuples
+    eig_pairs = [(np.abs(eig_vals[i]), eig_vecs[:,i]) for i in range(len(eig_vals))]
+
+    # Sort the (eigenvalue, eigenvector) tuples from high to low
+    eig_pairs = sorted(eig_pairs, key=lambda k: k[0], reverse=True)
+
+    # Visually confirm that the list is correctly sorted by decreasing eigenvalues
+
+    #print('Eigenvalues in decreasing order:\n')
+    #for i in eig_pairs:
+    #    print(i[0])
+
+    #print('Variance explained:\n')
+    eigv_sum = sum(eig_vals)
+    ##for i,j in enumerate(eig_pairs):
+     #   print('eigenvalue {0:}: {1:.2%}'.format(i+1, (j[0]/eigv_sum).real))
+
+    W = np.hstack((eig_pairs[0][1].reshape(5,1), eig_pairs[1][1].reshape(5,1)))
+    #print('Matrix W:\n', W.real)
+
+
+    X_lda = X.dot(W)
+
+    return X_lda
+
+
 
 class catalog(object):
     """ The ''catalog'' class handles all Morfometryka
@@ -140,6 +196,23 @@ class catalog(object):
             
         output.close()     
     
+    def param_selection(self, params):
+        new_catalog = np.array([])
+        size = np.size(self.raw_catalog[0])
+
+        for i, param in enumerate(params):
+            red_val = column_dict[param]
+            
+            if not i:
+                new_catalog = self.raw_catalog[red_val].reshape(size, 1)
+            else:
+                new_catalog = ma.append(new_catalog, self.raw_catalog[red_val].reshape(size, 1), axis=1)    
+        
+        return np.array(new_catalog).astype(float)
+
+    def data():
+        return self.raw_catalog
+
     def reduce(self, others, reduce_column, masked=True):
         temp_cat = self
 
