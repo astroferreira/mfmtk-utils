@@ -102,11 +102,23 @@ def find_spiked(param, threshold):
 
 
 def classes_indexes(galaxies, T_type):
-    E_indexes = T_type.T[np.where(T_type[1].astype(float) < 0)].T[0]
-    S_indexes = T_type.T[np.where((T_type[1].astype(float) >= 1) & (T_type[1].astype(float) < 6))].T[0]
+    ttype = T_type[1].astype(float)
+    inf_lim = T_type[2].astype(float)
+    sup_lim = T_type[3].astype(float)
+    E_indexes = T_type.T[np.where(ttype <= -4)].T[0]
+    S_indexes = T_type.T[np.where((ttype >= 0) & (ttype <= 6))].T[0]
     spirals = np.array([i for i, val in enumerate(galaxies) if val in set(S_indexes)])
     ellipticals = np.array([i for i, val in enumerate(galaxies) if val in set(E_indexes)])
     return [spirals, ellipticals]
+
+def find_class(galaxies, T_type, gclass):
+    class_names = []
+    for i, string_class in enumerate(T_type[2]):
+        if gclass in string_class:
+            class_names.append(T_type.T[i][0])
+
+    indexes = np.array([i for i, val in enumerate(galaxies) if val in set(class_names)])
+    return indexes
 
 def fisher_lda(X, n, classes):
     
@@ -154,7 +166,7 @@ def fisher_lda(X, n, classes):
 
     return X_lda
 
-
+#def train_f(X, )
 
 class catalog(object):
     """ The ''catalog'' class handles all Morfometryka
