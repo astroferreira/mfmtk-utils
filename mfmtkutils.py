@@ -33,11 +33,12 @@ Example:
 
 
 """
-
+from __future__ import division
+from scipy.stats import norm
 import numpy as np
 import numpy.ma as ma 
 import matplotlib.pyplot as plt
-from scipy.stats import norm
+
 
 
 def intersect(a, b):
@@ -166,7 +167,31 @@ def fisher_lda(X, n, classes):
 
     return X_lda
 
-#def train_f(X, )
+
+def train_discriminant(data, classes):
+    n = 5
+    #find mean vectors
+    mean_vectors = []
+    for c in classes:
+        mean_vectors.append(np.mean(data.real[c], axis=0))
+    mean_vectors
+
+    #find covariance matrix
+    SIGMA = np.cov(data[classes[0]], rowvar=0)
+
+    #find prior probabilities
+    Ntot = data.real[classes[0]].shape[0] + data.real[classes[1]].shape[0]
+    prior = []
+    for c in classes:
+        prior.append(data.real[c].shape[0]/Ntot)
+
+    SIGMA_I = np.linalg.inv(SIGMA)
+
+    #find coefficients
+    W = SIGMA_I.dot(mean_vectors[0] - mean_vectors[1])
+    w0 = np.log(prior[0]/prior[1]) - 0.5 * ((mean_vectors[0]).T.dot(SIGMA_I)).dot(mean_vectors[0]) + 0.5 * ((mean_vectors[1]).T.dot(SIGMA_I)).dot(mean_vectors[1])
+
+    return (W, w0)
 
 class catalog(object):
     """ The ''catalog'' class handles all Morfometryka
