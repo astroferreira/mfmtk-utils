@@ -106,8 +106,8 @@ def classes_indexes(galaxies, T_type):
     ttype = T_type[1].astype(float)
     inf_lim = T_type[2].astype(float)
     sup_lim = T_type[3].astype(float)
-    E_indexes = T_type.T[np.where(ttype <= -4)].T[0]
-    S_indexes = T_type.T[np.where((ttype >= 0) & (ttype <= 6))].T[0]
+    E_indexes = T_type.T[np.where(ttype <= 0)].T[0]
+    S_indexes = T_type.T[np.where(ttype > 0)].T[0]
     spirals = np.array([i for i, val in enumerate(galaxies) if val in set(S_indexes)])
     ellipticals = np.array([i for i, val in enumerate(galaxies) if val in set(E_indexes)])
     return [spirals, ellipticals]
@@ -166,6 +166,33 @@ def fisher_lda(X, n, classes):
     X_lda = X.dot(W)
 
     return X_lda
+
+import pylab as pl
+def lda_report_normalize(lda, data):
+    #print 20*'-'
+    #print 'normalizing w  and calculating Mi'
+    wn  = -lda.coef_[0]/pl.norm(lda.coef_)
+    w0n = -lda.intercept_[0]/pl.norm(lda.coef_)
+
+    Mi   = np.dot(wn, data.T) + w0n
+    #print 'w =', lda.coef_[0]
+    #print 'w0=', lda.intercept_[0]
+    #print 'w~=' , wn
+    #print 'w0/w=', w0n
+    return (wn, w0n)
+
+import sklearn.cross_validation as cross
+def avaliador(classifi, X, Y, K=10):
+    N  = len(Y)
+    kf = cross.KFold(n=N, n_folds=K)
+    classifi.fit(X, Y)
+
+    #print 'A =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, n_jobs=-1))
+    #print 'P =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='precision', n_jobs=-1))
+    #print 'R =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='recall', n_jobs=-1))
+    #print 'F1=', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='f1', n_jobs=-1))
+    predicted = cross.cross_val_predict(classifi, X, Y, cv=10)
+    return predicted
 
 
 def train_discriminant(data, classes):
