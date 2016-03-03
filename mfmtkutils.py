@@ -38,8 +38,12 @@ from scipy.stats import norm
 import numpy as np
 import numpy.ma as ma 
 import matplotlib.pyplot as plt
+import logging
 
-
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+LOG_FILENAME = '/data/mfmtkutils.log'
+logging.basicConfig(filename=LOG_FILENAME)
 
 def intersect(a, b):
     """ Return an numpy array with the intersection
@@ -169,28 +173,27 @@ def fisher_lda(X, n, classes):
 
 import pylab as pl
 def lda_report_normalize(lda, data):
-    print 20*'-'
-    print 'normalizing w  and calculating Mi'
+    logging.info('Normalizing coefficientes and calculating Mi')
     wn  = -lda.coef_[0]/pl.norm(lda.coef_)
     w0n = -lda.intercept_[0]/pl.norm(lda.coef_)
-
     Mi   = np.dot(wn, data.T) + w0n
-    print 'w =', lda.coef_[0]
-    print 'w0=', lda.intercept_[0]
-    print 'w~=' , wn
-    print 'w0/w=', w0n
+    logging.info('w    = {}'.format(lda.coef_[0]))
+    logging.info('w0   = {}'.format(lda.intercept_[0]))
+    logging.info('w~   = {}'.format(wn))
+    logging.info('w0/w = {}'.format(w0n))
     return (wn, w0n)
 
 import sklearn.cross_validation as cross
+
 def avaliador(classifi, X, Y, K=10):
     N  = len(Y)
     kf = cross.KFold(n=N, n_folds=K)
     classifi.fit(X, Y)
 
-    print 'A =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, n_jobs=-1))
-    print 'P =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='precision', n_jobs=-1))
-    print 'R =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='recall', n_jobs=-1))
-    print 'F1=', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='f1', n_jobs=-1))
+    print 'A =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf))
+    print 'P =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='precision'))
+    print 'R =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='recall'))
+    print 'F1=', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='f1'))
     predicted = cross.cross_val_predict(classifi, X, Y, cv=10)
     return predicted
 
