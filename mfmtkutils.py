@@ -51,11 +51,23 @@ def intersect(a, b):
     """
     return np.array(list(set(a) & set(b)))
 
-def histograms(param, x, axes=None, color='b', bins=19, normed=1, alpha=0.5, xinfo=False):
+
+"""
+______ _       _   _   _               _   _ _   _ _ _ _   _        
+| ___ \ |     | | | | (_)             | | | | | (_) (_) | (_)          
+| |_/ / | ___ | |_| |_ _ _ __   __ _  | | | | |_ _| |_| |_ _  ___  ___ 
+|  __/| |/ _ \| __| __| | '_ \ / _` | | | | | __| | | | __| |/ _ \/ __|
+| |   | | (_) | |_| |_| | | | | (_| | | |_| | |_| | | | |_| |  __/\__ \
+\_|   |_|\___/ \__|\__|_|_| |_|\__, |  \___/ \__|_|_|_|\__|_|\___||___/
+                                __/ |                                  
+                               |___/                                   
+"""
+
+def histograms(param, x, axes=None, color='b', bins=19, normed=1,
+               alpha=0.5, xinfo=False):
     """ Plots a mosaic with histograms for each value
     of 'x'.
     """
-
     if axes is None:
         f, axes = plt.subplots(4, 5, sharex=True, figsize=(15, 7))
         plt.subplots_adjust(hspace=0, wspace=0)
@@ -94,17 +106,62 @@ def plot_as_gaussians(param, x, ax=None, color='blue', label=None, title=None, y
     ax.fill_between(x, fit.T[0] - fit.T[1], fit.T[0] + fit.T[1],
                      facecolor=color, alpha=0.5)
 
-def find_spiked(param, threshold):
-    spiked = []
-    not_spiked = []
-    for i, galaxy in enumerate(Rn):
-        derivative = np.gradient(galaxy)
-        if not (np.size(derivative[np.where(derivative > 0)]) >= threshold):
-            not_spiked.append(i)
-        else:
-            spiked.append(i)
-    return (np.array(spiked), np.array(not_spiked))
+def plot_2Ddiscriminant(data, classes, W, w0):
+    plt.xlim(0.2, 1.2)
+    plt.ylim(-0.5, -0.3)
+    xx = np.linspace(-0.4, 1) 
+    a = -W[0] / W[1] 
+    yy = a * xx - w0 / W[1]
+    #f, ax = plt.subplots(1,1, figsize=(7, 6))
+    fig = plt.subplot(111)
+    plt.yticks([])
+    plt.plot(xx,yy, '--k', lw=3, label=r"$f(\mathbf{x}) = \mathbf{w}^T \mathbf{x}  + w_0 = 0$")
+    for c, marker, color in zip(classes, ('x', '^'), ('blue', 'red')):
+        plt.scatter(x=data[:,0].real[c],
+                y=data[:,1].real[c],
+                marker=marker,
+                c=color,
+                alpha=0.5)
+    plt.legend(loc=4)
 
+"""
+ _____ _               _  __ _           _   _               _   _ _   _ _     
+/  __ \ |             (_)/ _(_)         | | (_)             | | | | | (_) |    
+| /  \/ | __ _ ___ ___ _| |_ _  ___ __ _| |_ _  ___  _ __   | | | | |_ _| |___ 
+| |   | |/ _` / __/ __| |  _| |/ __/ _` | __| |/ _ \| '_ \  | | | | __| | / __|
+| \__/\ | (_| \__ \__ \ | | | | (_| (_| | |_| | (_) | | | | | |_| | |_| | \__ \
+ \____/_|\__,_|___/___/_|_| |_|\___\__,_|\__|_|\___/|_| |_|  \___/ \__|_|_|___/
+                                                                               
+"""                                                                            
+
+def classes_from_zoo(galaxies, zoo):
+    classes = np.zeros(galaxies.shape, dtype='int8') 
+    for i, val in enumerate(galaxies):
+        if(val in zoo[0]):
+            #logging.info('galaxy {} is type {}'.format(val, zoo[0][np.where(zoo[0] == val)]))
+            if(zoo[1][np.where(zoo[0] == val)] == 'S'):
+                classes[i] = 1
+            elif(zoo[1][np.where(zoo[0] == val)] == 'E'):
+                classes[i] = 2
+    return classes
+
+def classes_from_EFIGI(galaxies, T_type):
+    classes = np.zeros(galaxies.shape, dtype='int8') 
+    ttype = T_type[1].astype(float)
+    E_indexes = T_type.T[np.where(ttype <= 0)].T[0]
+    S_indexes = T_type.T[np.where(ttype > 0)].T[0]
+    spirals = np.array([i for i, val in enumerate(galaxies) if val in set(S_indexes)])
+    ellipticals = np.array([i for i, val in enumerate(galaxies) if val in set(E_indexes)])
+    classes[spirals] = 1
+    classes[ellipticals] = 2
+    return classes
+
+def EFIGI_ttype(galaxies, T_type):
+    ttype = np.zeros(galaxies.shape, dtype=float) 
+    for i, gal in enumerate(galaxies):
+        if gal in T_type[0]:
+            ttype[i] = T_type[1][np.where(T_type[0] == gal)[0][0]]
+    return ttype
 
 def classes_indexes(galaxies, T_type):
     ttype = T_type[1].astype(float)
@@ -173,7 +230,7 @@ def fisher_lda(X, n, classes):
 
 import pylab as pl
 def lda_report_normalize(lda, data):
-    logging.info('Normalizing coefficientes and calculating Mi')
+    logging.info('Normalizing coefficients and calculating Mi')
     wn  = -lda.coef_[0]/pl.norm(lda.coef_)
     w0n = -lda.intercept_[0]/pl.norm(lda.coef_)
     Mi   = np.dot(wn, data.T) + w0n
@@ -181,7 +238,7 @@ def lda_report_normalize(lda, data):
     logging.info('w0   = {}'.format(lda.intercept_[0]))
     logging.info('w~   = {}'.format(wn))
     logging.info('w0/w = {}'.format(w0n))
-    return (wn, w0n)
+    return Mi
 
 import sklearn.cross_validation as cross
 
@@ -189,14 +246,20 @@ def avaliador(classifi, X, Y, K=10):
     N  = len(Y)
     kf = cross.KFold(n=N, n_folds=K)
     classifi.fit(X, Y)
+    A = np.mean(cross.cross_val_score(classifi, X, Y, cv=kf))
+    P = np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='precision'))
+    R = np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='recall'))
+    F1 = np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='f1'))
+    logging.info('A = {:6.2f}%'.format(A*100))
+    logging.info('P = {:6.2f}%'.format(P*100))
+    logging.info('R = {:6.2f}%'.format(R*100))
+    logging.info('F1= {:6.2f}%'.format(F1*100))
 
-    print 'A =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf))
-    print 'P =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='precision'))
-    print 'R =', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='recall'))
-    print 'F1=', np.mean(cross.cross_val_score(classifi, X, Y, cv=kf, scoring='f1'))
-    predicted = cross.cross_val_predict(classifi, X, Y, cv=10)
-    return predicted
+    return (A, P, R, F1)
 
+def predict(classifier, X, Y):
+    predictions = cross.cross_val_predict(classifier, X, Y, cv=10)
+    return predictions
 
 def train_discriminant(data, classes):
     n = 5
@@ -222,6 +285,18 @@ def train_discriminant(data, classes):
     w0 = np.log(prior[0]/prior[1]) - 0.5 * ((mean_vectors[0]).T.dot(SIGMA_I)).dot(mean_vectors[0]) + 0.5 * ((mean_vectors[1]).T.dot(SIGMA_I)).dot(mean_vectors[1])
 
     return (W, w0)
+
+
+def find_spiked(param, threshold):
+    spiked = []
+    not_spiked = []
+    for i, galaxy in enumerate(Rn):
+        derivative = np.gradient(galaxy)
+        if not (np.size(derivative[np.where(derivative > 0)]) >= threshold):
+            not_spiked.append(i)
+        else:
+            spiked.append(i)
+    return (np.array(spiked), np.array(not_spiked))
 
 class catalog(object):
     """ The ''catalog'' class handles all Morfometryka
