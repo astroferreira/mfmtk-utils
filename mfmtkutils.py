@@ -106,6 +106,16 @@ def plot_as_gaussians(param, x, ax=None, color='blue', label=None, title=None, y
     ax.fill_between(x, fit.T[0] - fit.T[1], fit.T[0] + fit.T[1],
                      facecolor=color, alpha=0.5)
 
+    
+
+def adjust_ticks(ax):
+    xticks = ax.get_xticks()
+    ax.set_xticks(xticks[1:np.size(xticks)-1])
+    yticks = ax.get_yticks()
+    ax.set_yticks(yticks[1:np.size(yticks)-1])
+    
+    return ax
+
 def plot_2Ddiscriminant(data, classes, W, w0):
     plt.xlim(0.2, 1.2)
     plt.ylim(-0.5, -0.3)
