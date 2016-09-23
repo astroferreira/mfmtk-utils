@@ -191,14 +191,14 @@ def classes_from_zoo(galaxies, zoo):
 
 def classes_from_efigi(galaxies, t_type):
     classes = np.zeros(galaxies.shape, dtype='int8')
-    ttype = t_type[1].astype(float)
+    ttype = t_type#[1].astype(float)
 
-    e_indexes = t_type.T[np.where(ttype <= 0)].T[0]
-    s_indexes = t_type.T[np.where(ttype > 0)].T[0]
+    e_indexes = galaxies[np.where(ttype <= 0)]#.T[0]
+    s_indexes = galaxies[np.where(ttype > 0)]#.T[0]
 
     spirals = np.array([i for i, val in enumerate(galaxies)
                         if val in set(s_indexes)])
-
+    logging.info(spirals)
     ellipticals = np.array([i for i, val in enumerate(galaxies)
                             if val in set(e_indexes)])
     classes[spirals] = 1
@@ -382,14 +382,23 @@ def load_dir(path, galaxies=None, instrument=None, classes=None):
         raise "Not a Directory"
 
 
-def reduce_by_params(catalogs, params, galaxies=None):
+def reduce_by_params(catalogs, params, galaxies=None, retro_reduce=True):
     new_catalogs = []
     for j, param in enumerate(params):
         reduced = catalogs[0].reduce(catalogs, param, galaxies=galaxies)
+    
+        if(retro_reduce):
+           reduced.data = ma.mask_rows(reduced.data.T).T
+
+    
         new_catalogs.append(reduced)
+
+    
 
     if len(new_catalogs) < 2:
         return new_catalogs[0]
+
+
 
     return new_catalogs
 
@@ -406,16 +415,17 @@ def show_degradation(data, xlims=None, xticks=None, ylims=None, yticks=None, yla
     m, n = data.shape
     f, axes = plt.subplots(n, m, figsize=(m * 3, n * 3))
 
-    plt.grid(True)
+    #plt.grid(True)
     plt.subplots_adjust(wspace=0, hspace=0)
     
-    bgcolor = ['#e3eeff', '#fff5e5', '#eaffd5', '#eaffd5', '#fffbbf']
+    bgcolor = ['#e3eeff', '#fff5e5', '#eaffd5', '#fffbbf']
+
 
     for i, column in enumerate(data):
         for j, cell in enumerate(column):
             k = (n * i + 1) + j - 1
 
-            logging.info('Entering Column {} and cell {}'.format(i+1, j+1))
+            #logging.info('Entering Column {} and cell {}'.format(i+1, j+1))
 
             if(ylabels is not None):
                 if(i == 0):
@@ -425,7 +435,7 @@ def show_degradation(data, xlims=None, xticks=None, ylims=None, yticks=None, yla
                 axes[0][i].set_title(r'$\rm {}$'.format(titles[i]), fontsize=20)
 
 
-            #axes[j][i].set_axis_bgcolor(bgcolor[i])
+            axes[j][i].set_axis_bgcolor(bgcolor[i])
 
             if(i > 0):
                 axes[j][i].set_yticklabels([])    
@@ -440,7 +450,7 @@ def show_degradation(data, xlims=None, xticks=None, ylims=None, yticks=None, yla
                 axes[j][i].set_yticks(yticks[j])
 
 
-            axes[j][i].grid(True)
+            #axes[j][i].grid(True)
             
             if(ylims is not None):
                 axes[j][i].set_ylim(ylims[j])
@@ -450,7 +460,7 @@ def show_degradation(data, xlims=None, xticks=None, ylims=None, yticks=None, yla
             if(xlims is not None):
                 axes[j][i].set_xlim(xlims[i])
 
-            logging.info(axes[j][i].get_ylim())
+            #logging.info(axes[j][i].get_ylim())
 
     return f, axes
 
@@ -468,9 +478,10 @@ def __plot_degradation(cat, ax, color='blue', label=None, title=None,
 
 
         for column in cat.data:
+            logging.info(np.median(column[np.where(cat.classes == aclass)].compressed().astype(float)))
             #mu, sigma = np.array(norm.fit(column[np.where(cat.classes == aclass)].compressed().astype(float)))
             mus.append(np.median(column[np.where(cat.classes == aclass)].compressed().astype(float)))
-            sigmas.append(mad(column[np.where(cat.classes == aclass)].compressed().astype(float)))
+            sigmas.append(1.5*mad(column[np.where(cat.classes == aclass)].compressed().astype(float)))
 
         mus = np.array(mus)
         sigmas = np.array(sigmas)
@@ -518,9 +529,9 @@ class Catalog(object):
     def load(self, path):
             logging.info('Loading mfmtk catalog from file {}'.format(path))
 
-            self.data = np.loadtxt(path, delimiter=',',
+            self.data = ma.asarray(np.loadtxt(path, delimiter=',',
                                    usecols=np.arange(1, len(column_dict), 1),
-                                   dtype=float).T
+                                   dtype=float).T)
 
             self.__clean_data()
 
